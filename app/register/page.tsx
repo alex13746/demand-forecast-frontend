@@ -1,19 +1,20 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { api } from "@/lib/api"
+import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, Loader2, Mail, Store, User, Lock, CheckCircle } from "lucide-react"
+import { AlertCircle, Loader2, CheckCircle, User, Mail, Store, Lock } from "lucide-react"
 
 export default function RegisterPage() {
   const router = useRouter()
+  const { setUser } = useAuth()
   const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -26,10 +27,8 @@ export default function RegisterPage() {
   const handleRegister = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
 
-    setError(null)
-
     // Валидация полей
-    if (!username || !email || !password || !confirmPassword || !storeName) {
+    if (!username.trim() || !email.trim() || !password.trim() || !confirmPassword.trim() || !storeName.trim()) {
       setError("Заполните все поля")
       return
     }
@@ -37,13 +36,13 @@ export default function RegisterPage() {
     // Валидация email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
-      setError("Некорректный формат email")
+      setError("Введите корректный email адрес")
       return
     }
 
     // Валидация пароля
     if (password.length < 6) {
-      setError("Пароль должен быть минимум 6 символов")
+      setError("Пароль должен содержать минимум 6 символов")
       return
     }
 
@@ -54,17 +53,26 @@ export default function RegisterPage() {
     }
 
     setLoading(true)
+    setError(null)
 
     try {
       await api.register(username, email, password, storeName)
+      const loginResponse = await api.login(username, password)
+
+      // Set user in AuthContext
+      setUser({
+        username: loginResponse.username,
+        storeName: loginResponse.store_name,
+      })
+
       setSuccess(true)
 
-      // Редирект через 2 секунды
       setTimeout(() => {
-        router.push("/login")
+        router.push("/dashboard")
       }, 2000)
     } catch (err: any) {
       setError(err.message || "Ошибка регистрации")
+      setSuccess(false)
     } finally {
       setLoading(false)
     }
@@ -96,95 +104,93 @@ export default function RegisterPage() {
 
           {success && (
             <Alert className="mb-6 border-green-200 bg-green-50 text-green-800">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription>
-                Регистрация успешна! Проверьте email. Переадресация на страницу входа...
-              </AlertDescription>
+              <CheckCircle className="h-4 w-4" />
+              <AlertDescription>Регистрация успешна! Проверьте email. Переадресация...</AlertDescription>
             </Alert>
           )}
 
           <form onSubmit={handleRegister} className="space-y-4">
-            {/* Поле логина */}
             <div className="space-y-2">
-              <Label htmlFor="username">Логин</Label>
+              <Label htmlFor="username">Имя пользователя *</Label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <Input
                   id="username"
                   type="text"
-                  placeholder="Ваш логин (минимум 3 символа)"
+                  autoComplete="username"
+                  placeholder="Введите имя пользователя"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   disabled={loading || success}
-                  className="pl-10"
+                  className="w-full pl-10"
                 />
               </div>
             </div>
 
-            {/* Поле email */}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email *</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <Input
                   id="email"
                   type="email"
-                  placeholder="your@email.com"
+                  autoComplete="email"
+                  placeholder="example@mail.ru"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={loading || success}
-                  className="pl-10"
+                  className="w-full pl-10"
                 />
               </div>
             </div>
 
-            {/* Поле названия магазина */}
             <div className="space-y-2">
-              <Label htmlFor="storeName">Название магазина</Label>
+              <Label htmlFor="storeName">Название магазина *</Label>
               <div className="relative">
-                <Store className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                <Store className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <Input
                   id="storeName"
                   type="text"
-                  placeholder="Введите название вашего магазина"
+                  autoComplete="organization"
+                  placeholder="ООО 'Продукты'"
                   value={storeName}
                   onChange={(e) => setStoreName(e.target.value)}
                   disabled={loading || success}
-                  className="pl-10"
+                  className="w-full pl-10"
                 />
               </div>
             </div>
 
-            {/* Поле пароля */}
             <div className="space-y-2">
-              <Label htmlFor="password">Пароль</Label>
+              <Label htmlFor="password">Пароль *</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <Input
                   id="password"
                   type="password"
+                  autoComplete="new-password"
                   placeholder="Минимум 6 символов"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading || success}
-                  className="pl-10"
+                  className="w-full pl-10"
                 />
               </div>
             </div>
 
-            {/* Поле подтверждения пароля */}
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Повторите пароль</Label>
+              <Label htmlFor="confirmPassword">Подтвердите пароль *</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <Input
                   id="confirmPassword"
                   type="password"
+                  autoComplete="new-password"
                   placeholder="Повторите пароль"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={loading || success}
-                  className="pl-10"
+                  className="w-full pl-10"
                 />
               </div>
             </div>
@@ -195,6 +201,11 @@ export default function RegisterPage() {
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Регистрация...
                 </>
+              ) : success ? (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Успешно!
+                </>
               ) : (
                 "Зарегистрироваться"
               )}
@@ -203,28 +214,27 @@ export default function RegisterPage() {
 
           <div className="mt-6 text-center text-sm text-gray-600">
             Уже есть аккаунт?{" "}
-            <Link href="/login" className="font-medium text-blue-600 hover:underline">
+            <Link href="/login" className="font-medium text-primary hover:underline">
               Войти
             </Link>
           </div>
+        </div>
 
-          {/* Блок преимуществ */}
-          <div className="mt-6 rounded-lg bg-gray-50 p-4">
-            <p className="mb-3 text-sm font-medium text-gray-700">Преимущества:</p>
-            <ul className="space-y-2 text-sm text-gray-600">
-              <li className="flex items-center gap-2">
-                <span className="text-lg">📊</span>
-                <span>Прогнозы спроса на основе AI</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-lg">📦</span>
-                <span>Рекомендации по закупкам</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-lg">💰</span>
-                <span>Оптимизация товарных запасов</span>
-              </li>
-            </ul>
+        <div className="mt-6 rounded-xl border border-gray-200 bg-white/80 p-6 shadow-sm">
+          <h3 className="mb-4 text-center font-semibold text-gray-900">Что вы получите:</h3>
+          <div className="space-y-3 text-sm text-gray-600">
+            <div className="flex items-start gap-3">
+              <span className="text-lg">📊</span>
+              <span>Прогнозы продаж на основе ML</span>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-lg">📦</span>
+              <span>Рекомендации по закупкам</span>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-lg">💰</span>
+              <span>Оптимизация затрат на склад</span>
+            </div>
           </div>
         </div>
 

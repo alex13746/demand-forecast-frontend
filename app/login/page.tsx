@@ -1,26 +1,26 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { api } from "@/lib/api"
+import { useAuth } from "@/context/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, Loader2 } from "lucide-react"
+import { AlertCircle, Loader2, User, Lock } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
+  const { setUser } = useAuth()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleLogin = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
+  const handleLogin = async (e: FormEvent) => {
+    e.preventDefault()
 
     // Валидация
     if (!username.trim() || !password.trim()) {
@@ -34,9 +34,10 @@ export default function LoginPage() {
     try {
       const response = await api.login(username, password)
 
-      // Сохраняем данные пользователя
-      localStorage.setItem("username", username)
-      localStorage.setItem("store_name", response.store_name || "")
+      setUser({
+        username: response.username,
+        storeName: response.store_name,
+      })
 
       // Переход на дашборд
       router.push("/dashboard")
@@ -61,7 +62,7 @@ export default function LoginPage() {
           </Link>
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-lg">
+        <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-xl">
           <h1 className="mb-6 text-center text-2xl font-bold text-gray-900">Вход в систему</h1>
 
           {error && (
@@ -74,30 +75,36 @@ export default function LoginPage() {
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username">Имя пользователя</Label>
-              <Input
-                id="username"
-                type="text"
-                autoComplete="username"
-                placeholder="Введите имя пользователя"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                disabled={loading}
-                className="w-full"
-              />
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Input
+                  id="username"
+                  type="text"
+                  autoComplete="username"
+                  placeholder="Введите имя пользователя"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  disabled={loading}
+                  className="w-full pl-10"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="password">Пароль</Label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                placeholder="Введите пароль"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
-                className="w-full"
-              />
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="Введите пароль"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                  className="w-full pl-10"
+                />
+              </div>
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
@@ -115,7 +122,7 @@ export default function LoginPage() {
           <div className="mt-6 text-center text-sm text-gray-600">
             Нет аккаунта?{" "}
             <Link href="/register" className="font-medium text-primary hover:underline">
-              Регистрация
+              Зарегистрироваться
             </Link>
           </div>
         </div>

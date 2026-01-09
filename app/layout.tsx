@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
+import { AuthProvider } from "@/context/AuthContext"
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
@@ -10,8 +11,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "Прогнозирование спроса | B2B SaaS",
-  description: "Платформа прогнозирования спроса для российского ритейла",
+  title: "Система прогнозирования спроса",
+  description: "ML-система для прогнозирования продаж",
   generator: "v0.app",
   icons: {
     icon: [
@@ -40,7 +41,7 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body className={`${inter.className} font-sans antialiased`}>
-        {children}
+        <AuthProvider>{children}</AuthProvider>
         <Analytics />
       </body>
     </html>

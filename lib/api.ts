@@ -1,4 +1,5 @@
-export const API_URL = "https://demand-forecast-backend-xonj.onrender.com"
+export const API_BASE_URL = "https://demand-forecast-backend-xonj.onrender.com"
+const isBrowser = typeof window !== "undefined"
 
 // TypeScript interfaces for API responses
 export interface ForecastDataPoint {
@@ -61,17 +62,48 @@ export interface Product {
   data_quality?: number
 }
 
+export const auth = {
+  getToken(): string | null {
+    if (!isBrowser) return null
+    return localStorage.getItem("token")
+  },
+
+  setToken(token: string): void {
+    if (!isBrowser) return
+    localStorage.setItem("token", token)
+  },
+
+  removeToken(): void {
+    if (!isBrowser) return
+    localStorage.removeItem("token")
+    localStorage.removeItem("username")
+    localStorage.removeItem("store_name")
+  },
+
+  getUser(): { username: string; storeName: string } | null {
+    if (!isBrowser) return null
+    const username = localStorage.getItem("username")
+    const storeName = localStorage.getItem("store_name")
+    if (!username || !storeName) return null
+    return { username, storeName }
+  },
+
+  isAuthenticated(): boolean {
+    return !!this.getToken()
+  },
+}
+
 // API client object
 export const api = {
-  async register(username: string, email: string, password: string, store_name: string) {
+  async register(username: string, email: string, password: string, storeName: string) {
     try {
       const formData = new FormData()
       formData.append("username", username)
       formData.append("email", email)
       formData.append("password", password)
-      formData.append("store_name", store_name)
+      formData.append("store_name", storeName)
 
-      const response = await fetch(`${API_URL}/register`, {
+      const response = await fetch(`${API_BASE_URL}/register`, {
         method: "POST",
         body: formData,
       })
@@ -94,7 +126,7 @@ export const api = {
       formData.append("username", username)
       formData.append("password", password)
 
-      const response = await fetch(`${API_URL}/login`, {
+      const response = await fetch(`${API_BASE_URL}/login`, {
         method: "POST",
         body: formData,
       })
@@ -104,11 +136,28 @@ export const api = {
         throw new Error(error.detail || "Login failed")
       }
 
-      return await response.json()
+      const data = await response.json()
+
+      // Сохраняем токен и данные пользователя
+      if (data.access_token) {
+        auth.setToken(data.access_token)
+      }
+      if (isBrowser) {
+        localStorage.setItem("username", username)
+        if (data.store_name) {
+          localStorage.setItem("store_name", data.store_name)
+        }
+      }
+
+      return data
     } catch (error) {
       console.error("[API] Login error:", error)
       throw error
     }
+  },
+
+  logout(): void {
+    auth.removeToken()
   },
 
   async uploadSales(file: File, separator: string, username: string) {
@@ -118,7 +167,7 @@ export const api = {
       formData.append("separator", separator)
       formData.append("username", username)
 
-      const response = await fetch(`${API_URL}/upload-sales`, {
+      const response = await fetch(`${API_BASE_URL}/upload-sales`, {
         method: "POST",
         body: formData,
       })
@@ -137,7 +186,7 @@ export const api = {
 
   async getDashboard(username: string): Promise<DashboardData> {
     try {
-      const response = await fetch(`${API_URL}/dashboard?username=${encodeURIComponent(username)}`, {
+      const response = await fetch(`${API_BASE_URL}/dashboard?username=${encodeURIComponent(username)}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -158,7 +207,7 @@ export const api = {
 
   async getProducts(username: string) {
     try {
-      const response = await fetch(`${API_URL}/products?username=${encodeURIComponent(username)}`, {
+      const response = await fetch(`${API_BASE_URL}/products?username=${encodeURIComponent(username)}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -180,7 +229,7 @@ export const api = {
 
   async getProduct(productId: string | number, username: string): Promise<ProductDetail> {
     try {
-      const response = await fetch(`${API_URL}/product/${productId}?username=${encodeURIComponent(username)}`, {
+      const response = await fetch(`${API_BASE_URL}/product/${productId}?username=${encodeURIComponent(username)}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -201,7 +250,7 @@ export const api = {
 
   async exportExcel(username: string): Promise<void> {
     try {
-      const response = await fetch(`${API_URL}/export-excel?username=${encodeURIComponent(username)}`, {
+      const response = await fetch(`${API_BASE_URL}/export-excel?username=${encodeURIComponent(username)}`, {
         method: "GET",
       })
 
@@ -210,6 +259,8 @@ export const api = {
       }
 
       const blob = await response.blob()
+      if (!isBrowser) return
+
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
