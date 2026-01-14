@@ -88,7 +88,21 @@ export default function UploadPage() {
         return
       }
 
-      const headers = lines[0].split(",").map((h) => h.trim())
+      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
+      console.log("[v0] CSV headers detected:", headers)
+
+      const requiredColumns = ["date", "product_id", "quantity_sold"]
+      const missingColumns = requiredColumns.filter((col) => !headers.includes(col))
+
+      if (missingColumns.length > 0) {
+        setError(
+          `Отсутствуют обязательные колонки: ${missingColumns.join(", ")}. Найденные колонки: ${headers.join(", ")}`,
+        )
+        setFile(null)
+        setPreview([])
+        return
+      }
+
       const previewData: PreviewRow[] = []
 
       // Парсим первые 5 строк (или меньше, если строк меньше)
@@ -103,6 +117,7 @@ export default function UploadPage() {
 
       setPreview(previewData)
       console.log("[v0] Preview data set:", previewData.length, "rows")
+      console.log("[v0] Column validation passed")
     }
 
     reader.onerror = () => {
@@ -121,10 +136,11 @@ export default function UploadPage() {
 
     try {
       console.log("[v0] Uploading file:", file.name)
+      console.log("[v0] Username:", username)
 
-      await api.uploadSales(file, ",", username)
+      const result = await api.uploadSales(file, ",", username)
 
-      console.log("[v0] Upload successful")
+      console.log("[v0] Upload successful:", result)
 
       setSuccess(true)
 
@@ -134,7 +150,19 @@ export default function UploadPage() {
       }, 2000)
     } catch (err: any) {
       console.error("[v0] Upload error:", err)
-      setError(err.message || "Произошла ошибка при загрузке файла")
+
+      let errorMessage = "Произошла ошибка при загрузке файла"
+
+      if (err.message) {
+        errorMessage = err.message
+
+        // Если ошибка связана с колонками, дать подсказку
+        if (err.message.includes("колонки") || err.message.includes("columns")) {
+          errorMessage += ". Убедитесь, что в CSV файле есть колонки: date, product_id, quantity_sold"
+        }
+      }
+
+      setError(`Ошибка при обработке файла: ${errorMessage}`)
     } finally {
       setUploading(false)
     }
