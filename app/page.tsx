@@ -16,9 +16,9 @@ export default function HomePage() {
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">Система прогнозирования спроса</h1>
           <p className="text-xl text-gray-600 mb-8">ML-алгоритмы для точных прогнозов продаж</p>
 
-          <Link href="/register">
+          <Link href="/dashboard">
             <Button size="lg" className="text-lg px-8 py-6 h-auto">
-              Начать бесплатно
+              Начать работу
             </Button>
           </Link>
         </div>

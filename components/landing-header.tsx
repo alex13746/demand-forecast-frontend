@@ -28,9 +28,9 @@ export function LandingHeader() {
           </Link>
         </nav>
 
-        <Link href="/login">
+        <Link href="/dashboard">
           <Button variant="outline" className="text-sm font-medium bg-transparent">
-            Войти
+            Перейти к системе
           </Button>
         </Link>
       </div>

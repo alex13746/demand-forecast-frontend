@@ -8,7 +8,6 @@ import { Sidebar } from "@/components/sidebar"
 import { PurchaseRecommendations } from "@/components/purchase-recommendations"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import { api, type DashboardData } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -21,19 +20,13 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const router = useRouter()
 
   const loadDashboard = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      // Check for username in localStorage
-      const username = localStorage.getItem("username")
-      if (!username) {
-        router.push("/login")
-        return
-      }
+      const username = "testuser"
 
       console.log("[v0] Loading dashboard for user:", username)
       const dashboardData = await api.getDashboard(username)
@@ -42,14 +35,6 @@ export default function DashboardPage() {
     } catch (err) {
       console.error("[v0] Dashboard error:", err)
       const errorMessage = err instanceof Error ? err.message : "Не удалось загрузить данные"
-
-      // If unauthorized, redirect to login
-      if (errorMessage.includes("401") || errorMessage.includes("unauthorized")) {
-        localStorage.removeItem("username")
-        router.push("/login")
-        return
-      }
-
       setError(errorMessage)
     } finally {
       setLoading(false)
