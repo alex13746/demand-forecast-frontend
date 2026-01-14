@@ -2,13 +2,13 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
-import { API_BASE_URL } from "@/lib/api"
+import { api } from "@/lib/api"
 
 interface PreviewRow {
   [key: string]: string
@@ -21,6 +21,37 @@ export default function UploadPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [preview, setPreview] = useState<PreviewRow[]>([])
+  const [initializing, setInitializing] = useState(true)
+  const [username, setUsername] = useState<string>("testuser")
+
+  useEffect(() => {
+    const initializeUser = async () => {
+      try {
+        // Пытаемся войти с тестовым пользователем
+        await api.login("testuser", "testpassword123")
+        console.log("[v0] Test user logged in successfully")
+      } catch (loginError) {
+        console.log("[v0] Test user login failed, attempting registration...")
+
+        try {
+          // Если вход не удался, пробуем зарегистрировать
+          await api.register("testuser", "test@example.com", "testpassword123", "Test Store")
+          console.log("[v0] Test user registered successfully")
+
+          // После регистрации входим
+          await api.login("testuser", "testpassword123")
+          console.log("[v0] Test user logged in after registration")
+        } catch (registerError) {
+          console.log("[v0] Test user already exists or registration failed, continuing...")
+          // Пользователь уже существует или не удалось зарегистрировать - продолжаем работу
+        }
+      } finally {
+        setInitializing(false)
+      }
+    }
+
+    initializeUser()
+  }, [])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     console.log("[v0] File input changed", e.target.files)
@@ -91,25 +122,11 @@ export default function UploadPage() {
     try {
       console.log("[v0] Uploading file:", file.name)
 
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("separator", ",")
-      formData.append("username", "testuser") // Используем тестового пользователя
+      await api.uploadSales(file, ",", username)
 
-      const response = await fetch(`${API_BASE_URL}/upload-sales`, {
-        method: "POST",
-        body: formData,
-      })
-
-      console.log("[v0] Upload response status:", response.status)
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || "Ошибка загрузки файла")
-      }
+      console.log("[v0] Upload successful")
 
       setSuccess(true)
-      console.log("[v0] Upload successful, redirecting...")
 
       // Редирект через 2 секунды
       setTimeout(() => {
@@ -148,6 +165,19 @@ export default function UploadPage() {
       } as React.ChangeEvent<HTMLInputElement>
       handleFileChange(fakeEvent)
     }
+  }
+
+  if (initializing) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-2xl">
+          <CardContent className="py-12 text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Инициализация системы...</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
