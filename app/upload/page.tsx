@@ -23,8 +23,15 @@ export default function UploadPage() {
   const [preview, setPreview] = useState<PreviewRow[]>([])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("[v0] File input changed", e.target.files)
+
     const selectedFile = e.target.files?.[0]
-    if (!selectedFile) return
+    if (!selectedFile) {
+      console.log("[v0] No file selected")
+      return
+    }
+
+    console.log("[v0] File selected:", selectedFile.name, selectedFile.size, selectedFile.type)
 
     // Проверка что это CSV файл
     if (!selectedFile.name.endsWith(".csv")) {
@@ -42,6 +49,8 @@ export default function UploadPage() {
     reader.onload = (event) => {
       const text = event.target?.result as string
       const lines = text.split("\n").filter((line) => line.trim())
+
+      console.log("[v0] File parsed, lines:", lines.length)
 
       if (lines.length < 2) {
         setError("Файл должен содержать заголовки и хотя бы одну строку данных")
@@ -62,9 +71,11 @@ export default function UploadPage() {
       }
 
       setPreview(previewData)
+      console.log("[v0] Preview data set:", previewData.length, "rows")
     }
 
     reader.onerror = () => {
+      console.error("[v0] File reading error")
       setError("Ошибка при чтении файла")
     }
 
@@ -78,6 +89,8 @@ export default function UploadPage() {
     setError(null)
 
     try {
+      console.log("[v0] Uploading file:", file.name)
+
       const formData = new FormData()
       formData.append("file", file)
       formData.append("separator", ",")
@@ -88,18 +101,22 @@ export default function UploadPage() {
         body: formData,
       })
 
+      console.log("[v0] Upload response status:", response.status)
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.detail || "Ошибка загрузки файла")
       }
 
       setSuccess(true)
+      console.log("[v0] Upload successful, redirecting...")
 
       // Редирект через 2 секунды
       setTimeout(() => {
         router.push("/dashboard")
       }, 2000)
     } catch (err: any) {
+      console.error("[v0] Upload error:", err)
       setError(err.message || "Произошла ошибка при загрузке файла")
     } finally {
       setUploading(false)
@@ -107,7 +124,14 @@ export default function UploadPage() {
   }
 
   const handleSelectFile = () => {
-    document.getElementById("file-input")?.click()
+    console.log("[v0] Select file button clicked")
+    const fileInput = document.getElementById("file-input") as HTMLInputElement
+    if (fileInput) {
+      console.log("[v0] Triggering file input click")
+      fileInput.click()
+    } else {
+      console.error("[v0] File input not found")
+    }
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -116,6 +140,7 @@ export default function UploadPage() {
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
+    console.log("[v0] File dropped")
     const droppedFile = e.dataTransfer.files[0]
     if (droppedFile) {
       const fakeEvent = {
@@ -177,7 +202,14 @@ export default function UploadPage() {
               Выбрать файл
             </Button>
 
-            <input id="file-input" type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
+            <input
+              id="file-input"
+              type="file"
+              accept=".csv,text/csv"
+              onChange={handleFileChange}
+              className="hidden"
+              aria-label="Выбрать CSV файл"
+            />
           </div>
 
           {/* Preview таблица */}
