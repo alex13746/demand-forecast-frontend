@@ -106,6 +106,10 @@ export default function UploadPage() {
     }
   }
 
+  const handleSelectFile = () => {
+    document.getElementById("file-input")?.click()
+  }
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
   }
@@ -152,23 +156,27 @@ export default function UploadPage() {
 
           {/* Drag & Drop зона */}
           <div
-            className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer"
+            className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary transition-colors"
             onDragOver={handleDragOver}
             onDrop={handleDrop}
-            onClick={() => document.getElementById("file-input")?.click()}
           >
             <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-sm text-foreground mb-2">
+            <p className="text-sm text-foreground mb-4">
               {file ? (
                 <span className="flex items-center justify-center gap-2">
                   <FileSpreadsheet className="h-4 w-4 text-primary" />
                   {file.name}
                 </span>
               ) : (
-                "Перетащите CSV файл сюда или нажмите для выбора"
+                "Перетащите CSV файл сюда"
               )}
             </p>
-            <p className="text-xs text-muted-foreground">Поддерживается формат .csv</p>
+
+            <Button type="button" variant="outline" onClick={handleSelectFile} className="mx-auto bg-transparent">
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Выбрать файл
+            </Button>
+
             <input id="file-input" type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
           </div>
 
