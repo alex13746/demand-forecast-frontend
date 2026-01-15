@@ -11,8 +11,9 @@ import { useEffect, useState } from "react"
 import { api, type DashboardData } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, RefreshCw } from "lucide-react"
+import { AlertCircle, RefreshCw, FileDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 
 export default function DashboardPage() {
@@ -20,6 +21,9 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
+  const { toast } = useToast()
 
   const loadDashboard = async () => {
     try {
@@ -32,6 +36,7 @@ export default function DashboardPage() {
       const dashboardData = await api.getDashboard(username)
       console.log("[v0] Dashboard data loaded:", dashboardData)
       setData(dashboardData)
+      setLastUpdated(new Date())
     } catch (err) {
       console.error("[v0] Dashboard error:", err)
       const errorMessage = err instanceof Error ? err.message : "Не удалось загрузить данные"
@@ -41,31 +46,75 @@ export default function DashboardPage() {
     }
   }
 
+  const handleExportExcel = async () => {
+    try {
+      setIsExporting(true)
+      const username = "testuser"
+      await api.exportExcel(username)
+      toast({
+        title: "Экспорт выполнен",
+        description: "Файл прогноза успешно загружен",
+      })
+    } catch (error) {
+      toast({
+        title: "Ошибка экспорта",
+        description: error instanceof Error ? error.message : "Не удалось экспортировать данные",
+        variant: "destructive",
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   useEffect(() => {
     loadDashboard()
   }, [])
+
+  const formatLastUpdated = (date: Date) => {
+    return new Intl.DateTimeFormat("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date)
+  }
 
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
       <div className="flex-1 flex flex-col lg:ml-60">
-        <DashboardHeader onMenuClick={() => setIsMobileMenuOpen(true)} />
+        <DashboardHeader onMenuClick={() => setIsMobileMenuOpen(true)} onExportClick={handleExportExcel} />
         <main className="flex-1 px-4 lg:px-8 py-6 space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-semibold text-foreground mb-1">Сводка</h1>
-              <p className="text-sm text-muted-foreground">Обзор ключевых показателей и рекомендации</p>
+              <p className="text-sm text-muted-foreground">
+                Обзор ключевых показателей и рекомендации
+                {lastUpdated && <span className="ml-2 text-xs">• Обновлено: {formatLastUpdated(lastUpdated)}</span>}
+              </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={loadDashboard}
-              disabled={loading}
-              className="gap-2 bg-transparent"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-              Обновить
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 gap-2 lg:hidden bg-transparent"
+                onClick={handleExportExcel}
+                disabled={isExporting || !data}
+              >
+                <FileDown className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadDashboard}
+                disabled={loading}
+                className="gap-2 bg-transparent"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">Обновить</span>
+              </Button>
+            </div>
           </div>
 
           {loading && (
@@ -90,7 +139,7 @@ export default function DashboardPage() {
                   <Button variant="outline" size="sm" onClick={loadDashboard}>
                     Попробовать снова
                   </Button>
-                  <Link href="/import">
+                  <Link href="/upload">
                     <Button variant="outline" size="sm">
                       Загрузить данные
                     </Button>
@@ -117,7 +166,7 @@ export default function DashboardPage() {
                   <AlertTitle>Нет данных для рекомендаций</AlertTitle>
                   <AlertDescription className="flex flex-col gap-2">
                     <p>Пожалуйста, загрузите данные о продажах для получения рекомендаций к закупке.</p>
-                    <Link href="/import">
+                    <Link href="/upload">
                       <Button size="sm">Загрузить данные</Button>
                     </Link>
                   </AlertDescription>

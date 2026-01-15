@@ -1,97 +1,24 @@
+"use client"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, ArrowUpDown, MoreHorizontal } from "lucide-react"
+import { Search, ArrowUpDown, AlertCircle } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { cn } from "@/lib/utils"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import Link from "next/link"
+import { useEffect, useState } from "react"
+import { api, type Product } from "@/lib/api"
 
-const products = [
-  {
-    id: "1",
-    sku: "SKU-2847",
-    name: "Смартфон Samsung Galaxy S24",
-    category: "Электроника",
-    group: "A",
-    forecast: 450000,
-    actual: 423000,
-    accuracy: 94,
-    dataQuality: 98,
-    status: "ok",
-  },
-  {
-    id: "2",
-    sku: "SKU-1923",
-    name: "Кроссовки Nike Air Max",
-    category: "Одежда",
-    group: "A",
-    forecast: 125000,
-    actual: 138000,
-    accuracy: 90,
-    dataQuality: 95,
-    status: "ok",
-  },
-  {
-    id: "3",
-    sku: "SKU-4562",
-    name: 'Молоко "Простоквашино" 3.2%',
-    category: "Продукты",
-    group: "B",
-    forecast: 78000,
-    actual: 54000,
-    accuracy: 69,
-    dataQuality: 72,
-    status: "warning",
-  },
-  {
-    id: "4",
-    sku: "SKU-7891",
-    name: "Ноутбук ASUS VivoBook",
-    category: "Электроника",
-    group: "A",
-    forecast: 890000,
-    actual: 912000,
-    accuracy: 98,
-    dataQuality: 99,
-    status: "ok",
-  },
-  {
-    id: "5",
-    sku: "SKU-3345",
-    name: "Пылесос Dyson V15",
-    category: "Бытовая техника",
-    group: "B",
-    forecast: 345000,
-    actual: 289000,
-    accuracy: 84,
-    dataQuality: 88,
-    status: "attention",
-  },
-  {
-    id: "6",
-    sku: "SKU-5678",
-    name: "Крем для лица L'Oreal",
-    category: "Косметика",
-    group: "C",
-    forecast: 67000,
-    actual: 71000,
-    accuracy: 94,
-    dataQuality: 85,
-    status: "ok",
-  },
-]
+interface EnhancedProduct extends Product {
+  status?: "critical" | "low" | "normal"
+}
 
-const formatCurrency = (value: number) => {
-  return (
-    value
-      .toLocaleString("ru-RU", {
-        style: "decimal",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      })
-      .replace(/,/g, " ") + " ₽"
-  )
+const formatNumber = (value: number) => {
+  return value.toLocaleString("ru-RU").replace(/,/g, " ")
 }
 
 const getGroupColor = (group: string) => {
@@ -113,7 +40,128 @@ const getDataQualityColor = (quality: number) => {
   return "bg-red-500"
 }
 
+const getStockStatus = (stock: number): "critical" | "low" | "normal" => {
+  if (stock < 10) return "critical"
+  if (stock < 50) return "low"
+  return "normal"
+}
+
+const getStatusBadge = (status: string) => {
+  switch (status) {
+    case "critical":
+      return (
+        <Badge variant="destructive" className="text-xs font-medium">
+          Критический
+        </Badge>
+      )
+    case "low":
+      return (
+        <Badge variant="secondary" className="text-xs font-medium bg-amber-100 text-amber-700 border-amber-200">
+          Низкий
+        </Badge>
+      )
+    case "normal":
+      return (
+        <Badge variant="default" className="text-xs font-medium bg-emerald-100 text-emerald-700 border-emerald-200">
+          Норма
+        </Badge>
+      )
+    default:
+      return null
+  }
+}
+
 export function ProductsTable() {
+  const [products, setProducts] = useState<EnhancedProduct[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const username = "testuser"
+
+        console.log("[v0] Loading products for user:", username)
+        const productsData = await api.getProducts(username)
+        console.log("[v0] Products loaded:", productsData)
+
+        const enhancedProducts = productsData.map((product: Product) => ({
+          ...product,
+          status: getStockStatus(product.stock),
+        }))
+
+        enhancedProducts.sort((a, b) => a.stock - b.stock)
+
+        setProducts(enhancedProducts)
+      } catch (err) {
+        console.error("[v0] Products load error:", err)
+        setError(err instanceof Error ? err.message : "Не удалось загрузить товары")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadProducts()
+  }, [])
+
+  const filteredProducts = products.filter(
+    (product) =>
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.sku.toLowerCase().includes(searchQuery.toLowerCase()),
+  )
+
+  if (loading) {
+    return (
+      <Card className="border border-border">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-semibold text-foreground">Аналитика и ABC</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card className="border border-border">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-semibold text-foreground">Аналитика и ABC</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (products.length === 0) {
+    return (
+      <Card className="border border-border">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-semibold text-foreground">Аналитика и ABC</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Нет данных о товарах. Загрузите CSV файл с историей продаж для начала работы.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card className="border border-border">
       <CardHeader className="pb-4">
@@ -121,7 +169,12 @@ export function ProductsTable() {
           <CardTitle className="text-base font-semibold text-foreground">Аналитика и ABC</CardTitle>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <Input placeholder="Поиск по SKU или названию..." className="w-[240px] pl-8 h-8 text-xs" />
+            <Input
+              placeholder="Поиск по SKU или названию..."
+              className="w-[240px] pl-8 h-8 text-xs"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
         </div>
       </CardHeader>
@@ -131,79 +184,94 @@ export function ProductsTable() {
             <TableRow className="hover:bg-transparent">
               <TableHead className="h-9 text-xs font-semibold">
                 <Button variant="ghost" size="sm" className="h-7 px-2 text-xs -ml-2">
-                  SKU
+                  Артикул
                   <ArrowUpDown className="ml-1 h-3 w-3" />
                 </Button>
               </TableHead>
-              <TableHead className="h-9 text-xs font-semibold">Товар</TableHead>
-              <TableHead className="h-9 text-xs font-semibold">Категория</TableHead>
-              <TableHead className="h-9 text-xs font-semibold text-center">Группа</TableHead>
-              <TableHead className="h-9 text-xs font-semibold text-right">Прогноз</TableHead>
-              <TableHead className="h-9 text-xs font-semibold text-right">Факт</TableHead>
-              <TableHead className="h-9 text-xs font-semibold text-center">Точность</TableHead>
-              <TableHead className="h-9 text-xs font-semibold text-center">Качество данных</TableHead>
-              <TableHead className="h-9 w-10"></TableHead>
+              <TableHead className="h-9 text-xs font-semibold">Название</TableHead>
+              <TableHead className="h-9 text-xs font-semibold text-right">Остаток (шт)</TableHead>
+              <TableHead className="h-9 text-xs font-semibold text-center">Статус</TableHead>
+              {products.some((p) => p.abc_group) && (
+                <TableHead className="h-9 text-xs font-semibold text-center">Группа</TableHead>
+              )}
+              {products.some((p) => p.data_quality !== undefined) && (
+                <TableHead className="h-9 text-xs font-semibold text-center">Качество данных</TableHead>
+              )}
+              <TableHead className="h-9 text-xs font-semibold">Действия</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products.map((product, index) => (
-              <TableRow key={index} className="hover:bg-muted/50">
+            {filteredProducts.map((product) => (
+              <TableRow key={product.product_id} className="hover:bg-muted/50">
                 <TableCell className="py-3 text-xs font-mono text-muted-foreground">{product.sku}</TableCell>
                 <TableCell className="py-3">
                   <Link
-                    href={`/products/${product.id}`}
+                    href={`/products/${product.product_id}`}
                     className="font-medium text-xs text-accent hover:text-accent/80 hover:underline transition-colors"
                   >
                     {product.name}
                   </Link>
                 </TableCell>
-                <TableCell className="py-3 text-xs text-muted-foreground">{product.category}</TableCell>
-                <TableCell className="py-3 text-center">
-                  <Badge
-                    variant="outline"
-                    className={cn("text-xs font-bold w-8 justify-center", getGroupColor(product.group))}
-                  >
-                    {product.group}
-                  </Badge>
-                </TableCell>
                 <TableCell className="py-3 text-xs text-right font-medium text-foreground">
-                  {formatCurrency(product.forecast)}
+                  {formatNumber(product.stock)}
                 </TableCell>
-                <TableCell className="py-3 text-xs text-right font-medium text-foreground">
-                  {formatCurrency(product.actual)}
-                </TableCell>
-                <TableCell className="py-3 text-center">
-                  <Badge
-                    variant={
-                      product.status === "ok" ? "default" : product.status === "warning" ? "destructive" : "secondary"
-                    }
-                    className="text-xs font-semibold"
-                  >
-                    {product.accuracy}%
-                  </Badge>
-                </TableCell>
+                <TableCell className="py-3 text-center">{getStatusBadge(product.status || "normal")}</TableCell>
+                {products.some((p) => p.abc_group) && (
+                  <TableCell className="py-3 text-center">
+                    {product.abc_group ? (
+                      <Badge
+                        variant="outline"
+                        className={cn("text-xs font-bold w-8 justify-center", getGroupColor(product.abc_group))}
+                      >
+                        {product.abc_group}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                )}
+                {products.some((p) => p.data_quality !== undefined) && (
+                  <TableCell className="py-3">
+                    {product.data_quality !== undefined ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={cn("h-full transition-all", getDataQualityColor(product.data_quality))}
+                            style={{ width: `${product.data_quality}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium text-muted-foreground w-8 text-right">
+                          {product.data_quality}%
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground text-center block">-</span>
+                    )}
+                  </TableCell>
+                )}
                 <TableCell className="py-3">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className={cn("h-full transition-all", getDataQualityColor(product.dataQuality))}
-                        style={{ width: `${product.dataQuality}%` }}
-                      />
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground w-8 text-right">
-                      {product.dataQuality}%
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell className="py-3">
-                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                    <MoreHorizontal className="h-3.5 w-3.5" />
-                  </Button>
+                  <Link href={`/products/${product.product_id}`}>
+                    <Button variant="outline" size="sm" className="h-7 text-xs bg-transparent">
+                      Детали
+                    </Button>
+                  </Link>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
+
+        {filteredProducts.length === 0 && searchQuery && (
+          <div className="text-center py-8 text-sm text-muted-foreground">
+            Ничего не найдено по запросу "{searchQuery}"
+          </div>
+        )}
+
+        {filteredProducts.length > 0 && (
+          <div className="mt-4 text-xs text-muted-foreground text-center">
+            Показано {filteredProducts.length} из {products.length} товаров
+          </div>
+        )}
       </CardContent>
     </Card>
   )

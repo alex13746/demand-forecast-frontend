@@ -4,22 +4,47 @@ import type React from "react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Bell, Settings, ChevronDown, Menu } from "lucide-react"
+import { Search, Bell, Settings, ChevronDown, Menu, FileDown } from "lucide-react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { api } from "@/lib/api"
+import { useToast } from "@/hooks/use-toast"
 
 interface DashboardHeaderProps {
   onMenuClick?: () => void
+  onExportClick?: () => void
 }
 
-export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
+export function DashboardHeader({ onMenuClick, onExportClick }: DashboardHeaderProps) {
   const [searchQuery, setSearchQuery] = useState("")
+  const [isExporting, setIsExporting] = useState(false)
   const router = useRouter()
+  const { toast } = useToast()
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
       router.push(`/products/1?search=${encodeURIComponent(searchQuery)}`)
+    }
+  }
+
+  const handleExport = async () => {
+    try {
+      setIsExporting(true)
+      const username = "testuser"
+      await api.exportExcel(username)
+      toast({
+        title: "Экспорт выполнен",
+        description: "Файл успешно загружен",
+      })
+    } catch (error) {
+      toast({
+        title: "Ошибка экспорта",
+        description: error instanceof Error ? error.message : "Не удалось экспортировать данные",
+        variant: "destructive",
+      })
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -54,6 +79,17 @@ export function DashboardHeader({ onMenuClick }: DashboardHeaderProps) {
             </nav>
           </div>
           <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-2 hidden lg:flex bg-transparent"
+              onClick={onExportClick || handleExport}
+              disabled={isExporting}
+            >
+              <FileDown className="w-4 h-4" />
+              <span className="text-xs font-medium">Экспорт в Excel</span>
+            </Button>
+
             <form onSubmit={handleSearch} className="relative hidden lg:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <Input
