@@ -32,9 +32,7 @@ export default function DashboardPage() {
 
       const username = "testuser"
 
-      console.log("[v0] Loading dashboard for user:", username)
       const dashboardData = await api.getDashboard(username)
-      console.log("[v0] Dashboard data loaded:", dashboardData)
       setData(dashboardData)
       setLastUpdated(new Date())
     } catch (err) {
