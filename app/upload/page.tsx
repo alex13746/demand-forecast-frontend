@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -21,48 +21,13 @@ export default function UploadPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [preview, setPreview] = useState<PreviewRow[]>([])
-  const [initializing, setInitializing] = useState(true)
-  const [username, setUsername] = useState<string>("testuser")
-
-  useEffect(() => {
-    const initializeUser = async () => {
-      try {
-        // Пытаемся войти с тестовым пользователем
-        await api.login("testuser", "testpassword123")
-        console.log("[v0] Test user logged in successfully")
-      } catch (loginError) {
-        console.log("[v0] Test user login failed, attempting registration...")
-
-        try {
-          // Если вход не удался, пробуем зарегистрировать
-          await api.register("testuser", "test@example.com", "testpassword123", "Test Store")
-          console.log("[v0] Test user registered successfully")
-
-          // После регистрации входим
-          await api.login("testuser", "testpassword123")
-          console.log("[v0] Test user logged in after registration")
-        } catch (registerError) {
-          console.log("[v0] Test user already exists or registration failed, continuing...")
-          // Пользователь уже существует или не удалось зарегистрировать - продолжаем работу
-        }
-      } finally {
-        setInitializing(false)
-      }
-    }
-
-    initializeUser()
-  }, [])
+  const username = "testuser"
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("[v0] File input changed", e.target.files)
-
     const selectedFile = e.target.files?.[0]
     if (!selectedFile) {
-      console.log("[v0] No file selected")
       return
     }
-
-    console.log("[v0] File selected:", selectedFile.name, selectedFile.size, selectedFile.type)
 
     // Проверка что это CSV файл
     if (!selectedFile.name.endsWith(".csv")) {
@@ -81,15 +46,12 @@ export default function UploadPage() {
       const text = event.target?.result as string
       const lines = text.split("\n").filter((line) => line.trim())
 
-      console.log("[v0] File parsed, lines:", lines.length)
-
       if (lines.length < 2) {
         setError("Файл должен содержать заголовки и хотя бы одну строку данных")
         return
       }
 
       const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
-      console.log("[v0] CSV headers detected:", headers)
 
       const requiredColumns = ["date", "product_id", "quantity_sold"]
       const missingColumns = requiredColumns.filter((col) => !headers.includes(col))
@@ -116,12 +78,9 @@ export default function UploadPage() {
       }
 
       setPreview(previewData)
-      console.log("[v0] Preview data set:", previewData.length, "rows")
-      console.log("[v0] Column validation passed")
     }
 
     reader.onerror = () => {
-      console.error("[v0] File reading error")
       setError("Ошибка при чтении файла")
     }
 
@@ -135,12 +94,19 @@ export default function UploadPage() {
     setError(null)
 
     try {
-      console.log("[v0] Uploading file:", file.name)
-      console.log("[v0] Username:", username)
+      try {
+        await api.login("testuser", "testpassword123")
+      } catch {
+        // Если вход не удался, регистрируем и входим
+        try {
+          await api.register("testuser", "test@example.com", "testpassword123", "Test Store")
+          await api.login("testuser", "testpassword123")
+        } catch {
+          // Продолжаем даже если регистрация не удалась - возможно пользователь уже существует
+        }
+      }
 
       const result = await api.uploadSales(file, ",", username)
-
-      console.log("[v0] Upload successful:", result)
 
       setSuccess(true)
 
@@ -149,8 +115,6 @@ export default function UploadPage() {
         router.push("/dashboard")
       }, 2000)
     } catch (err: any) {
-      console.error("[v0] Upload error:", err)
-
       let errorMessage = "Произошла ошибка при загрузке файла"
 
       if (err.message) {
@@ -169,13 +133,9 @@ export default function UploadPage() {
   }
 
   const handleSelectFile = () => {
-    console.log("[v0] Select file button clicked")
     const fileInput = document.getElementById("file-input") as HTMLInputElement
     if (fileInput) {
-      console.log("[v0] Triggering file input click")
       fileInput.click()
-    } else {
-      console.error("[v0] File input not found")
     }
   }
 
@@ -185,7 +145,6 @@ export default function UploadPage() {
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
-    console.log("[v0] File dropped")
     const droppedFile = e.dataTransfer.files[0]
     if (droppedFile) {
       const fakeEvent = {
@@ -193,19 +152,6 @@ export default function UploadPage() {
       } as React.ChangeEvent<HTMLInputElement>
       handleFileChange(fakeEvent)
     }
-  }
-
-  if (initializing) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
-        <Card className="w-full max-w-2xl">
-          <CardContent className="py-12 text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-            <p className="text-muted-foreground">Инициализация системы...</p>
-          </CardContent>
-        </Card>
-      </div>
-    )
   }
 
   return (
