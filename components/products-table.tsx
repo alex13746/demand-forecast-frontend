@@ -17,7 +17,8 @@ interface EnhancedProduct extends Product {
   status?: "critical" | "low" | "normal"
 }
 
-const formatNumber = (value: number) => {
+const formatNumber = (value: number | undefined | null) => {
+  if (value === undefined || value === null) return "0"
   return value.toLocaleString("ru-RU").replace(/,/g, " ")
 }
 
@@ -40,7 +41,8 @@ const getDataQualityColor = (quality: number) => {
   return "bg-red-500"
 }
 
-const getStockStatus = (stock: number): "critical" | "low" | "normal" => {
+const getStockStatus = (stock: number | undefined | null): "critical" | "low" | "normal" => {
+  if (stock === undefined || stock === null) return "normal"
   if (stock < 10) return "critical"
   if (stock < 50) return "low"
   return "normal"
@@ -84,12 +86,11 @@ export function ProductsTable() {
         setError(null)
         const username = "testuser"
 
-        console.log("[v0] Loading products for user:", username)
         const productsData = await api.getProducts(username)
-        console.log("[v0] Products loaded:", productsData)
 
-        const enhancedProducts = productsData.map((product: Product) => ({
+        const enhancedProducts = (productsData || []).map((product: Product) => ({
           ...product,
+          stock: product.stock ?? 0,
           status: getStockStatus(product.stock),
         }))
 
@@ -97,7 +98,6 @@ export function ProductsTable() {
 
         setProducts(enhancedProducts)
       } catch (err) {
-        console.error("[v0] Products load error:", err)
         setError(err instanceof Error ? err.message : "Не удалось загрузить товары")
       } finally {
         setLoading(false)

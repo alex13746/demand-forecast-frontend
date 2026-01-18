@@ -1,17 +1,13 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, TrendingUp, ShoppingCart, Package, Upload, Settings, X } from "lucide-react"
+import { LayoutDashboard, Upload, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
 const navItems = [
   { label: "Сводка", icon: LayoutDashboard, href: "/dashboard", active: false },
-  { label: "Прогнозы", icon: TrendingUp, href: "/forecasts", active: false },
-  { label: "Закупки", icon: ShoppingCart, href: "/purchases", active: false },
-  { label: "Склад", icon: Package, href: "/warehouse", active: false },
   { label: "Загрузка данных", icon: Upload, href: "/upload", active: false },
-  { label: "Настройки", icon: Settings, href: "/settings", active: false },
 ]
 
 interface SidebarProps {
